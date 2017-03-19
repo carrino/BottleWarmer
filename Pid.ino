@@ -7,24 +7,27 @@
 #define THERM_INTERVAL 10
 #define THERM_PIN 1
 #define RELAY_PIN 0
-#define WINDOW_SIZE 3001 // this is prime which gets us nice stuff
+#define BUTTON_PIN 3
+#define WINDOW_SIZE 2999 // this is prime which gets us nice stuff
 #define MIN_WATTS 0.0
 #define MAX_WATTS 300.0
 #define KP 1.0 // This has units of watts/C.  Watts per degree error in C
 #define KI 1.0 // This has units of watts/C/s
 #define KD 1.0 //This has units of watts/(C/s)
 #define TARGET_TEMP 37.0 // body temp
+#define RUN_TIME (15*60*1000) // 15 min
 
 // This is the internal state of our PID
 float lastTemp;
 float lastError = 0.0;
 float accumulatedI = 0.0;
 
-// Run a simple moving avg on temp to remove noise
+bool waitForButton = true;
+int lastButtonPress;
 int lastTempUpdate;
 int lastPidUpdate;
 int relayWindowStart;
-float movingAvgTemp;
+float movingAvgTemp; // Run a simple moving avg on temp to remove noise
 int relayOut = 0; // between [0, window size]
 
 void setup() { 
@@ -35,6 +38,7 @@ void setup() {
   lastPidUpdate = millis();
   lastTempUpdate = lastPidUpdate;
   relayWindowStart = lastPidUpdate;
+  lastButtonPress = lastPidUpdate;
   lastTemp = getTemp();
   movingAvgTemp = lastTemp;
 } 
@@ -47,10 +51,25 @@ void loop(void) {
     movingAvgTemp = (movingAvgTemp * (MOVING_AVERAGE_INTERVALS - 1) + temp) / MOVING_AVERAGE_INTERVALS;
   }
 
+  int buttonDown = digitalRead(BUTTON_PIN);
+  if (buttonDown == HIGH) {
+    lastButtonPress = now;
+    waitForButton = false;
+  }
+
+  if (now - lastButtonPress > RUN_TIME) {
+    waitForButton = true;
+  }
+
+  if (waitForButton) {
+    digitalWrite(RELAY_PIN, LOW);
+    return;
+  }
+
   if (now - lastPidUpdate > PID_INTERVAL_MS) {
     lastPidUpdate = now;
     // TODO: consider turning off the relay during the computation if it takes too long
-    relayOut = updatePid(movingAvgTemp) * WINDOW_SIZE / MAX_WATTS; 
+    relayOut = updatePid(movingAvgTemp) * 10; 
   }
 
   if (now - relayWindowStart >= WINDOW_SIZE) {
@@ -92,7 +111,6 @@ float updatePid(float temp) {
 float norm(float f) {
   return max(MIN_WATTS, min(MAX_WATTS, f));
 }
-
 
 float getTemp() {
   int val = analogRead(THERM_PIN);

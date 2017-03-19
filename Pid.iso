@@ -75,6 +75,8 @@ int updatePid(float temp) {
   float p = kp * error;
   float accumulatedI += ki * error; // the time of 100ms is implicit in the tuning param ki
   float d = kd * delta;
+
+  // We don't want the accumulated integral term to be higher than what it needed to get up to the max output.
   accumulatedI = min(accumulatedI, WINDOW_SIZE - p);
   accumulatedI = max(accumulatedI, 0);
   return min(WINDOW_SIZE, p + accumulatedI + d);

@@ -12,18 +12,31 @@
 #define WINDOW_SIZE 2999 // this is prime which gets us nice stuff
 #define MIN_WATTS 0.0
 #define MAX_WATTS 300.0
-#define KP 1.0 // This has units of watts/C.  Watts per degree error in C
-#define KI 1.0 // This has units of watts/C/s
-#define KD 1.0 //This has units of watts/(C/s)
+
+// In testing we found that we can go full blast to about 10 degrees out from the target.
+// We want to avoid overshoot.
+// This means that KP should be about 1/10 of max watts to start backing off at 10degC out.
+#define KP (MAX_WATTS/10.0)  // This has units of watts/C.  Watts per degree error in C
+
+// KI should be very small.  At steady state, we lost less than 1 degree C over 7 min of testing.
+// This is 1kJ over 7min or about 2.3 watts.  This means our steady state is only 2.3W/KP which is about .1 degC
+// Our thermometer isn't even this accurate, so KI should be 0
+#define KI 0.0 // This has units of watts/C/s
+
+// In testing we found that a rate of .3 degrees C per second was full blast with about 240cc of water
+// We also found that a cutoff at full blast may still rise 5 degrees.
+// To be on the safe side we want to full cut off heat at 5 degrees out when rising at 3 sec per C
+// At 5C error we will be running at half power so we should cut 150W per .3C/s
+#define KD (KP / 5.0 * 3.0) //This has units of watts/(C/s) or W * (s/C)
 #define TARGET_TEMP 37.0 // body temp
 #define RUN_TIME (15*60*1000) // 15 min
 
 // This is the internal state of our PID
 float lastTemp;
 float lastError = 0.0;
-float accumulatedI = 0.0;
+//float accumulatedI = 0.0;
 
-bool waitForButton = true;
+bool waitForButton = false; // TODO: set this to true after testing is done.
 long lastButtonPress;
 int lastTempUpdate;
 int lastPidUpdate;
@@ -32,7 +45,8 @@ float movingAvgTemp; // Run a simple exponential moving avg on temp to remove no
 int relayWindowOut = 0; // between [0, window size]
 
 void setup() { 
-  //Serial.begin(115200);
+  Serial.begin(115200);
+
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -83,6 +97,7 @@ void loop(void) {
   }
 
   updateRelay(now - relayWindowStart);
+  Serial.println(millis() - now);
 }
 
 void updateRelay(int windowMillis) {
@@ -103,19 +118,25 @@ float updatePid(float temp) {
   float normP = norm(p); // unit of W
 
   // We average lastError and error to use the trapezoidal approximation of the integral instead of the box one.
-  accumulatedI += KI * (error + lastError) * 0.5 * PID_INTERVAL_S;
+  //accumulatedI += KI * (error + lastError) * 0.5 * PID_INTERVAL_S;
   float d = KD * delta * PID_INTERVAL_HZ; // unit of W
+  if (d > 0) {
+    // We only want our d term to slow us down when heating.  
+    // It can be too unstable when temps fall due to amplification of small changes
+    d = 0;
+  }
 
   // We don't want the accumulated integral term to be higher than what is needed to get up to the max output.
   // We don't need the integral to add more value if we are already at full blast.
   // This will reduce integral windup https://en.wikipedia.org/wiki/Integral_windup
   // This method is better at reducing windup than direct clamping at min and max.
-  accumulatedI = min(accumulatedI, MAX_WATTS - normP);
-  accumulatedI = max(accumulatedI, MIN_WATTS - normP);
+  //accumulatedI = min(accumulatedI, MAX_WATTS - normP);
+  //accumulatedI = max(accumulatedI, MIN_WATTS - normP);
 
   lastTemp = temp;
   lastError = error;
-  return norm(p + accumulatedI + d);
+  //return norm(p + accumulatedI + d);
+  return norm(p + d);
 }
 
 float norm(float f) {

@@ -1,5 +1,6 @@
 #include <Arduino.h>
 
+// Define pins for 2 types of controllers
 #if defined(ARDUINO_AVR_TRINKET3) || defined(ARDUINO_AVR_TRINKET5)
 #define THERM_PIN 1 // this is analog 1 which is digial 2
 #define RELAY_PIN 0
@@ -12,14 +13,17 @@
 #define LED_PIN 11
 #endif
 
+// Define Hardware contstants
+#define MIN_WATTS 0.0
+#define MAX_WATTS 300.0
+#define KNOWN_RESISTOR 10000.0
+
 #define MOVING_AVERAGE_INTERVALS 32 // This should be a power of 2 for perf
 #define PID_INTERVAL_MS 100
 #define PID_INTERVAL_S (PID_INTERVAL_MS / 1000.0)
 #define PID_INTERVAL_HZ (1000.0 / PID_INTERVAL_MS)
 #define THERM_INTERVAL 10
 #define WINDOW_SIZE 2999 // this is prime which gets us nice stuff
-#define MIN_WATTS 0.0
-#define MAX_WATTS 300.0
 
 // In testing we found that we can go full blast to about 10 degrees out from the target.
 // We want to avoid overshoot.
@@ -154,6 +158,15 @@ float norm(float f) {
 
 float getTemp() {
   int val = analogRead(THERM_PIN);
-  // TODO: convert to temp
+  if (val <= 1) {
+    // Our math breaks down here.
+    return 0;
+  }
+
+  // https://learn.adafruit.com/thermistor/using-a-thermistor
+  float thermResistance = KNOWN_RESISTOR / (1023.0/(val - 1));
+  // https://en.wikipedia.org/wiki/Thermistor#B_or_.CE.B2_parameter_equation
+  //  1/T = 1/T0 + 1/B * ln(R / R0)
+  // We set R0 = 10K, T0 = 298.15K, B = 3950
   return val;
 }

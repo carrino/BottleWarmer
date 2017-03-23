@@ -17,6 +17,9 @@
 #define MIN_WATTS 0.0
 #define MAX_WATTS 300.0
 #define KNOWN_RESISTOR 10000.0
+#define THERMISTOR_BETA 3950.0
+#define THERMISTOR_ROOM_TEMP 298.15
+#define THERMISTOR_ROOM_TEMP_R 10000.0
 
 #define MOVING_AVERAGE_INTERVALS 32 // This should be a power of 2 for perf
 #define PID_INTERVAL_MS 100
@@ -156,17 +159,25 @@ float norm(float f) {
   return max(MIN_WATTS, min(MAX_WATTS, f));
 }
 
+// return temp in C
 float getTemp() {
   int val = analogRead(THERM_PIN);
-  if (val <= 1) {
+  if (val == 0) {
     // Our math breaks down here.
     return 0;
   }
 
+  if (val == 1023) {
+    // Our math breaks down here.
+    return 100;
+  }
+
   // https://learn.adafruit.com/thermistor/using-a-thermistor
-  float thermResistance = KNOWN_RESISTOR / (1023.0/(val - 1));
+  float thermResistance = KNOWN_RESISTOR / (1023.0/val - 1);
+
   // https://en.wikipedia.org/wiki/Thermistor#B_or_.CE.B2_parameter_equation
   //  1/T = 1/T0 + 1/B * ln(R / R0)
-  // We set R0 = 10K, T0 = 298.15K, B = 3950
-  return val;
+  // We set R0 = 10K, T0 = 298.15 degK, B = 3950
+  float inverseKelvin =  1 / THERMISTOR_ROOM_TEMP + log(thermResistance / THERMISTOR_ROOM_TEMP_R) / THERMISTOR_BETA;
+  return (1.0 / inverseKelvin) - 273.15;
 }

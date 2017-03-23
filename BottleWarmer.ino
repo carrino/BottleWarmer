@@ -13,6 +13,16 @@
 #define LED_PIN 11
 #endif
 
+// Software constants for timing.
+#define MOVING_AVERAGE_INTERVALS 32 // This should be a power of 2 for perf
+#define PID_INTERVAL_MS 101 // prime
+#define PID_INTERVAL_S (PID_INTERVAL_MS / 1000.0)
+#define PID_INTERVAL_HZ (1000.0 / PID_INTERVAL_MS)
+#define THERM_INTERVAL 11 // prime
+#define WINDOW_SIZE 2999 // this is prime which gets us nice stuff
+#define TARGET_TEMP 37.0 // body temp
+#define RUN_TIME (15L*60*1000) // 15 min
+
 // Define Hardware contstants
 #define MIN_WATTS 0.0
 #define MAX_WATTS 300.0
@@ -20,14 +30,6 @@
 #define THERMISTOR_BETA 3950.0
 #define THERMISTOR_ROOM_TEMP_K 298.15
 #define THERMISTOR_ROOM_RESIST 10000.0
-
-#define MOVING_AVERAGE_INTERVALS 32 // This should be a power of 2 for perf
-#define PID_INTERVAL_MS 100
-#define PID_INTERVAL_S (PID_INTERVAL_MS / 1000.0)
-#define PID_INTERVAL_HZ (1000.0 / PID_INTERVAL_MS)
-#define THERM_INTERVAL 10
-#define WINDOW_SIZE 2999 // this is prime which gets us nice stuff
-
 // In testing we found that we can go full blast to about 10 degrees out from the target.
 // We want to avoid overshoot.
 // This means that KP should be about 1/10 of max watts to start backing off at 10degC out.
@@ -43,20 +45,18 @@
 // To be on the safe side we want to full cut off heat at 5 degrees out when rising at 3 sec per C
 // At 5C error we will be running at half power so we should cut 150W per .3C/s
 #define KD (KP / 5.0 * 3.0) //This has units of watts/(C/s) or W * (s/C)
-#define TARGET_TEMP 37.0 // body temp
-#define RUN_TIME (15L*60*1000) // 15 min
 
-// This is the internal state of our PID
+// This is the internal state of our PID like code
 float lastTemp;
 //float accumulatedI = 0.0;
 
-bool waitForButton = false; // TODO: set this to true after testing is done.
+bool waitForButton = true;
 long lastButtonPress;
 int lastTempUpdate;
 int lastPidUpdate;
 int relayWindowStart;
 float movingAvgTemp; // Run a simple exponential moving avg on temp to remove noise
-int relayWindowOut = 0; // between [0, window size]
+int relayWindowOut = 0; // between [0, window size] used to control the relay
 
 void setup() { 
   //Serial.begin(115200);

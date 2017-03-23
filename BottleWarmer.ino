@@ -18,8 +18,8 @@
 #define MAX_WATTS 300.0
 #define KNOWN_RESISTOR 10000.0
 #define THERMISTOR_BETA 3950.0
-#define THERMISTOR_ROOM_TEMP 298.15
-#define THERMISTOR_ROOM_TEMP_R 10000.0
+#define THERMISTOR_ROOM_TEMP_K 298.15
+#define THERMISTOR_ROOM_RESIST 10000.0
 
 #define MOVING_AVERAGE_INTERVALS 32 // This should be a power of 2 for perf
 #define PID_INTERVAL_MS 100
@@ -178,6 +178,6 @@ float getTemp() {
   // https://en.wikipedia.org/wiki/Thermistor#B_or_.CE.B2_parameter_equation
   //  1/T = 1/T0 + 1/B * ln(R / R0)
   // We set R0 = 10K, T0 = 298.15 degK, B = 3950
-  float inverseKelvin =  1 / THERMISTOR_ROOM_TEMP + log(thermResistance / THERMISTOR_ROOM_TEMP_R) / THERMISTOR_BETA;
+  float inverseKelvin =  1 / THERMISTOR_ROOM_TEMP_K + log(thermResistance / THERMISTOR_ROOM_RESIST) / THERMISTOR_BETA;
   return (1.0 / inverseKelvin) - 273.15;
 }

@@ -4,7 +4,7 @@
 #if defined(ARDUINO_AVR_TRINKET3) || defined(ARDUINO_AVR_TRINKET5)
 #define THERM_PIN 1 // this is analog 1 which is digial 2
 #define RELAY_PIN 0
-#define BUTTON_PIN 3 // This is a shared usb pin, but our button pulls to ground so it should work
+#define BUTTON_PIN 3 // This is a shared usb pin, but our button is open line until pressed
 #define LED_PIN 1 // LED pin required PWM
 #else
 #define THERM_PIN A1
